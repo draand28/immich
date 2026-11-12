@@ -14,3 +14,5 @@ node browser-upload.mjs sample2.mp4  # same flow through the web UI in headless 
 `browser-upload.mjs` needs the Playwright browsers (`pnpm exec playwright install chromium` inside `web/`). It resolves Playwright from `web/node_modules`; set `PLAYWRIGHT_MODULE` to override.
 
 The proxy only limits the body size. `proxy_request_buffering off` keeps it streaming to the server, like Cloudflare Tunnel.
+
+Build the image first from the repository root: `docker build -f server/Dockerfile -t immich-chunked:local .`
