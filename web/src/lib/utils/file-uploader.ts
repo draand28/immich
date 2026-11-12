@@ -239,7 +239,7 @@ const resumableUpload = async ({
         url = withQuery(new URL(location, globalThis.location.origin).href);
       }
       const reportedOffset = Number(response.headers['upload-offset']);
-      offset = Number.isSafeInteger(reportedOffset) ? reportedOffset : end;
+      offset = Number.isSafeInteger(reportedOffset) && reportedOffset > offset ? reportedOffset : end;
       onProgress(offset, size);
 
       if (response.data?.id) {
@@ -261,6 +261,10 @@ const resumableUpload = async ({
         const serverOffset = Number(error.headers['upload-offset']);
         if (Number.isSafeInteger(serverOffset) && serverOffset !== offset) {
           offset = serverOffset;
+          const location = error.headers['location'];
+          if (location) {
+            url = withQuery(new URL(location, globalThis.location.origin).href);
+          }
           continue;
         }
       }
