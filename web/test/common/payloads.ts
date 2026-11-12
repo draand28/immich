@@ -148,7 +148,10 @@ const versionHistory = (): ResponseOf<'getVersionHistory'> => [
 ];
 
 const adminConfig = (overrides: Partial<ResponseOf<'getAdminConfig'>> = {}): ResponseOf<'getAdminConfig'> => ({
-  backup: { database: { enabled: true, cronExpression: '0 02 * * *', keepLastAmount: 14 } },
+  backup: {
+    database: { enabled: true, cronExpression: '0 02 * * *', keepLastAmount: 14 },
+    upload: { maxAgeHours: 72, maxAppendBytes: 94_371_840 },
+  },
   ffmpeg: {
     crf: 23,
     threads: 0,
@@ -262,6 +265,7 @@ const adminConfig = (overrides: Partial<ResponseOf<'getAdminConfig'>> = {}): Res
     databaseCleanup: true,
     generateMemories: true,
     syncQuotaUsage: true,
+    removeStaleUploads: true,
     missingThumbnails: true,
     clusterNewFaces: true,
   },
@@ -339,3 +343,4 @@ export const payload = {
   backups,
   integrityReport,
 };
+

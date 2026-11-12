@@ -55,8 +55,9 @@ export const initLanguage = async () => {
 
 interface UploadRequestOptions {
   url: string;
-  method?: 'POST' | 'PUT';
-  data: FormData;
+  method?: 'POST' | 'PUT' | 'PATCH';
+  data: FormData | Blob;
+  headers?: Record<string, string>;
   onUploadProgress?: (event: ProgressEvent<XMLHttpRequestEventTarget>) => void;
 }
 
@@ -64,17 +65,29 @@ export class AbortError extends Error {
   override name = 'AbortError';
 }
 
-class ApiError extends Error {
+export class ApiError extends Error {
   override name = 'ApiError';
 
   constructor(
     public override message: string,
     public statusCode: number,
     public details: string,
+    public headers: Record<string, string> = {},
   ) {
     super(message);
   }
 }
+
+const responseHeaders = (xhr: XMLHttpRequest) => {
+  const headers: Record<string, string> = {};
+  for (const line of xhr.getAllResponseHeaders().trim().split(/[\r\n]+/)) {
+    const index = line.indexOf(':');
+    if (index > 0) {
+      headers[line.slice(0, index).trim().toLowerCase()] = line.slice(index + 1).trim();
+    }
+  }
+  return headers;
+};
 
 export const sleep = (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -97,7 +110,9 @@ export const cancelUploadRequests = () => {
   }
 };
 
-export const uploadRequest = async <T>(options: UploadRequestOptions): Promise<{ data: T; status: number }> => {
+export const uploadRequest = async <T>(
+  options: UploadRequestOptions,
+): Promise<{ data: T; status: number; headers: Record<string, string> }> => {
   const { onUploadProgress: onProgress, data, url } = options;
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -111,9 +126,9 @@ export const uploadRequest = async <T>(options: UploadRequestOptions): Promise<{
     xhr.addEventListener('load', () => {
       unsubscribe();
       if (xhr.readyState === 4 && xhr.status >= 200 && xhr.status < 300) {
-        resolve({ data: xhr.response as T, status: xhr.status });
+        resolve({ data: xhr.response as T, status: xhr.status, headers: responseHeaders(xhr) });
       } else {
-        reject(new ApiError(xhr.statusText, xhr.status, xhr.response));
+        reject(new ApiError(xhr.statusText, xhr.status, xhr.response, responseHeaders(xhr)));
       }
     });
 
@@ -123,6 +138,9 @@ export const uploadRequest = async <T>(options: UploadRequestOptions): Promise<{
 
     xhr.open(options.method || 'POST', url);
     xhr.responseType = 'json';
+    for (const [key, value] of Object.entries(options.headers ?? {})) {
+      xhr.setRequestHeader(key, value);
+    }
     xhr.send(data);
   });
 };
