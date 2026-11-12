@@ -4,8 +4,8 @@ const { chromium } = await import(playwrightPath);
 
 const BASE = process.env.BASE ?? 'http://127.0.0.1:23284';
 const API = `${BASE}/api`;
-const EMAIL = 'test@example.com';
-const PASSWORD = 'password1234';
+const EMAIL = process.env.TEST_EMAIL ?? 'test@example.com';
+const PASSWORD = process.env.TEST_PASSWORD ?? 'password1234';
 const FILE = process.argv[2] ?? 'sample.mp4';
 
 const browser = await chromium.launch();
@@ -65,3 +65,4 @@ console.log(`failed requests: ${failures.length}`);
 for (const failure of failures) console.log(`  ${failure}`);
 await browser.close();
 process.exitCode = failures.length === 0 && uploadEvents.some((event) => event.startsWith('PATCH')) ? 0 : 1;
+

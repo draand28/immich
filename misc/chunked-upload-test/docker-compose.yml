@@ -48,7 +48,7 @@ services:
 
   machine-learning:
     container_name: immich_test_ml
-    image: ghcr.io/immich-app/immich-machine-learning:release
+    image: ghcr.io/immich-app/immich-machine-learning:v3.3.0
     volumes:
       - model-cache:/cache
 
@@ -67,3 +67,4 @@ volumes:
   pgdata:
   upload:
   model-cache:
+

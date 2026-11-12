@@ -16,3 +16,5 @@ node browser-upload.mjs sample2.mp4  # same flow through the web UI in headless 
 The proxy only limits the body size. `proxy_request_buffering off` keeps it streaming to the server, like Cloudflare Tunnel.
 
 Build the image first from the repository root: `docker build -f server/Dockerfile -t immich-chunked:local .`
+
+Set TEST_EMAIL and TEST_PASSWORD to override the throwaway admin account the scripts create.

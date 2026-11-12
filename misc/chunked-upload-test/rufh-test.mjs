@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import { open } from 'node:fs/promises';
 
 const BASE = process.env.BASE ?? 'http://127.0.0.1:23284/api';
-const EMAIL = 'test@example.com';
-const PASSWORD = 'password1234';
+const EMAIL = process.env.TEST_EMAIL ?? 'test@example.com';
+const PASSWORD = process.env.TEST_PASSWORD ?? 'password1234';
 const FILE = process.argv[2] ?? 'sample.mp4';
 const MODE = process.argv[3] ?? 'rufh';
 
@@ -148,3 +148,4 @@ async function main() {
 }
 
 await main();
+
