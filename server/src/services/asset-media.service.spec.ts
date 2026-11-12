@@ -221,6 +221,15 @@ describe(AssetMediaService.name, () => {
       });
       expect(mocks.asset.getUploadAssetIdByChecksum).toHaveBeenCalledWith(authStub.admin.user.id, file1);
     });
+
+    it('should not report an unfinished upload as a duplicate', async () => {
+      mocks.asset.getUploadAssetIdByChecksum.mockResolvedValue({
+        id: 'asset-id',
+        createdAt: new Date(),
+        status: AssetStatus.Partial,
+      });
+      await expect(sut.getUploadAssetIdByChecksum(authStub.admin, file1.toString('hex'))).resolves.toBeUndefined();
+    });
   });
 
   describe('canUpload', () => {

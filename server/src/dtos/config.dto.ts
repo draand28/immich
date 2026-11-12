@@ -170,18 +170,18 @@ const AdminConfigSchemaWithVisibility = z
             keepLastAmount: z.int().min(1).describe('Keep last amount'),
           })
           .meta({ id: 'AdminConfigDatabaseBackupDto' }),
-        upload: z
-          .object({
-            maxAgeHours: z.int().min(1).describe('Max age in hours'),
-            maxAppendBytes: z
-              .int()
-              .min(5 * 1024 * 1024)
-              .max(90 * 1024 * 1024)
-              .describe('Largest single request body a resumable upload may send'),
-          })
-          .meta({ id: 'AdminConfigUploadBackupDto' }),
       })
       .meta({ id: 'AdminConfigBackupsDto' }),
+    upload: z
+      .object({
+        maxAgeHours: z.int().min(1).describe('Max age of an unfinished upload in hours'),
+        maxAppendBytes: z
+          .int()
+          .min(5 * 1024 * 1024)
+          .max(90 * 1024 * 1024)
+          .describe('Largest single request body a resumable upload may send'),
+      })
+      .meta({ id: 'AdminConfigUploadDto' }),
     ffmpeg: AdminConfigFFmpegSchema,
     integrityChecks: z
       .object({
@@ -600,10 +600,10 @@ export const defaults = Object.freeze<SystemConfig>({
       cronExpression: CronExpression.EVERY_DAY_AT_2AM,
       keepLastAmount: 14,
     },
-    upload: {
-      maxAgeHours: 72,
-      maxAppendBytes: 90 * 1024 * 1024,
-    },
+  },
+  upload: {
+    maxAgeHours: 72,
+    maxAppendBytes: 90 * 1024 * 1024,
   },
   ffmpeg: {
     crf: 23,

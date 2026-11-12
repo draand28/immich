@@ -20,6 +20,7 @@ import { AssetDownloadOriginalDto } from 'src/dtos/asset.dto.js';
 import { AuthDto, isEditedOnly, isMetadataHidden } from 'src/dtos/auth.dto.js';
 import {
   AssetFileType,
+  AssetStatus,
   AssetVisibility,
   CacheControl,
   ChecksumAlgorithm,
@@ -51,7 +52,7 @@ export class AssetMediaService extends BaseService {
     await this.requireAccess({ auth, permission: Permission.AssetUpload, ids: [auth.user.id] });
 
     const asset = await this.assetRepository.getUploadAssetIdByChecksum(auth.user.id, fromChecksum(checksum));
-    if (!asset) {
+    if (!asset || asset.status === AssetStatus.Partial) {
       return;
     }
 

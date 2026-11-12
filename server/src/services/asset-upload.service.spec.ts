@@ -1,4 +1,5 @@
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Readable } from 'node:stream';
 import { AssetMetadataKey, AssetStatus, AssetType, AssetVisibility, JobName, JobStatus } from 'src/enum.js';
 import { AssetUploadService } from 'src/services/asset-upload.service.js';
 import { ASSET_CHECKSUM_CONSTRAINT } from 'src/utils/database.js';
@@ -452,4 +453,96 @@ describe(AssetUploadService.name, () => {
       expect(mocks.asset.removeAndDecrementQuota).toHaveBeenCalledWith(assetId);
     });
   });
+
+  describe('startUpload', () => {
+    const dto = () => ({
+      assetData: {
+        filename: 'test.jpg',
+        deviceAssetId: 'device-asset-1',
+        deviceId: 'device-1',
+        fileCreatedAt: new Date('2025-01-01T00:00:00Z'),
+        fileModifiedAt: new Date('2025-01-01T12:00:00Z'),
+        isFavorite: false,
+      },
+      checksum: Buffer.from('checksum'),
+      uploadLength: 1024,
+      uploadComplete: false,
+      contentLength: 512,
+      version: 6,
+    });
+
+    const mockRequest = () => {
+      const req = Readable.from([Buffer.alloc(0)]) as Readable & { destroy: () => void };
+      req.destroy = vi.fn();
+      return req;
+    };
+
+    const mockResponse = () => {
+      const res: any = { headersSent: false, socket: { destroyed: false, write: vi.fn() } };
+      for (const method of ['status', 'set', 'setHeader', 'contentType', 'send']) {
+        res[method] = vi.fn(() => res);
+      }
+      return res;
+    };
+
+    it('should reject a body larger than the configured append size', async () => {
+      const req = mockRequest();
+      const res = mockResponse();
+
+      await sut.startUpload(authStub.user1, req, res, {
+        ...dto(),
+        contentLength: 100 * 1024 * 1024,
+        uploadLength: 200 * 1024 * 1024,
+      });
+
+      expect(res.status).toHaveBeenCalledWith(413);
+      expect(res.setHeader).toHaveBeenCalledWith('Upload-Limit', expect.stringContaining('max-append-size='));
+      expect(req.destroy).toHaveBeenCalled();
+      expect(mocks.asset.createWithMetadata).not.toHaveBeenCalled();
+    });
+
+    it('should reject an append larger than the declared upload length', async () => {
+      mocks.crypto.randomUUID.mockReturnValue(factory.uuid());
+      mocks.asset.createWithMetadata.mockResolvedValue({ id: factory.uuid() } as any);
+      const res = mockResponse();
+
+      await sut.startUpload(authStub.user1, mockRequest(), res, { ...dto(), contentLength: 2048 });
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.send).toHaveBeenCalledWith(
+        expect.objectContaining({ title: expect.stringContaining('inconsistent length') }),
+      );
+    });
+
+    it('should answer 409 with the offset of an existing partial upload', async () => {
+      const assetId = factory.uuid();
+      const assetPath = `/upload/${assetId}/file.jpg`;
+      mocks.crypto.randomUUID.mockReturnValue(factory.uuid());
+      mocks.asset.createWithMetadata.mockRejectedValue(
+        Object.assign(new Error('duplicate'), { constraint_name: ASSET_CHECKSUM_CONSTRAINT }),
+      );
+      mocks.asset.getUploadAssetIdByChecksum.mockResolvedValue({
+        id: assetId,
+        status: AssetStatus.Partial,
+        createdAt: new Date(),
+      });
+      mocks.asset.getCompletionMetadata.mockResolvedValue({
+        path: assetPath,
+        status: AssetStatus.Partial,
+        fileModifiedAt: new Date(),
+        createdAt: new Date(),
+        checksum: Buffer.from('checksum'),
+        size: 1024,
+      });
+      mocks.storage.stat.mockResolvedValue({ size: 512 } as any);
+      const res = mockResponse();
+
+      await sut.startUpload(authStub.user1, mockRequest(), res, dto());
+
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.set).toHaveBeenCalledWith('Location', `/api/upload/${assetId}`);
+      expect(res.setHeader).toHaveBeenCalledWith('Upload-Offset', '512');
+    });
+  });
 });
+

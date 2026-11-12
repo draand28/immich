@@ -19234,14 +19234,10 @@
           },
           "database": {
             "$ref": "#/components/schemas/AdminConfigDatabaseBackupDto"
-          },
-          "upload": {
-            "$ref": "#/components/schemas/AdminConfigUploadBackupDto"
           }
         },
         "required": [
-          "database",
-          "upload"
+          "database"
         ],
         "type": "object"
       },
@@ -19355,6 +19351,9 @@
           "trash": {
             "$ref": "#/components/schemas/AdminConfigTrashDto"
           },
+          "upload": {
+            "$ref": "#/components/schemas/AdminConfigUploadDto"
+          },
           "user": {
             "$ref": "#/components/schemas/AdminConfigUserDto"
           }
@@ -19382,6 +19381,7 @@
           "templates",
           "theme",
           "trash",
+          "upload",
           "user"
         ],
         "type": "object"
@@ -20471,10 +20471,10 @@
         ],
         "type": "object"
       },
-      "AdminConfigUploadBackupDto": {
+      "AdminConfigUploadDto": {
         "properties": {
           "maxAgeHours": {
-            "description": "Max age in hours",
+            "description": "Max age of an unfinished upload in hours",
             "maximum": 9007199254740991,
             "minimum": 1,
             "type": "integer"

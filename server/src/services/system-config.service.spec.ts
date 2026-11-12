@@ -53,10 +53,10 @@ const updatedConfig = Object.freeze<SystemConfig>({
       cronExpression: '0 02 * * *',
       keepLastAmount: 14,
     },
-    upload: {
-      maxAgeHours: 72,
-      maxAppendBytes: 90 * 1024 * 1024,
-    },
+  },
+  upload: {
+    maxAgeHours: 72,
+    maxAppendBytes: 90 * 1024 * 1024,
   },
   ffmpeg: {
     crf: 30,

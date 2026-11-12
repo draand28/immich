@@ -30,7 +30,6 @@ import { isAssetChecksumConstraint } from 'src/utils/database.js';
 import { mimeTypes } from 'src/utils/mime-types.js';
 import { withRetry } from 'src/utils/misc.js';
 
-export const MAX_RUFH_INTEROP_VERSION = 8;
 type CompletionData = { id: string; path: string; fileModifiedAt: Date; sharedLink?: AuthSharedLink };
 
 @Injectable()
@@ -60,8 +59,8 @@ export class AssetUploadService extends BaseService {
     const { uploadComplete, assetData, uploadLength, contentLength, version } = dto;
     const isComplete = uploadComplete !== false;
     const isResumable = version && uploadComplete !== undefined;
-    const { backup } = await this.getConfig({ withCache: true });
-    if (this.rejectOversizedAppend(req, res, contentLength, backup)) {
+    const { upload } = await this.getConfig({ withCache: true });
+    if (this.rejectOversizedAppend(req, res, contentLength, upload)) {
       return;
     }
 
@@ -79,7 +78,7 @@ export class AssetUploadService extends BaseService {
           .status(409)
           .set('Location', location)
           .setHeader('Upload-Offset', offset.toString())
-          .setHeader('Upload-Limit', this.getUploadLimits(backup))
+          .setHeader('Upload-Limit', this.getUploadLimits(upload))
           .contentType('application/problem+json')
           .send({
             type: 'https://iana.org/assignments/http-problem-types#incomplete-upload-exists',
@@ -93,10 +92,11 @@ export class AssetUploadService extends BaseService {
       return this.sendInconsistentLength(res);
     }
 
-    if (isResumable) {
+    if (contentLength > uploadLength) {
+      return this.sendInconsistentLength(res);
     }
 
-    this.addRequest(id, req);
+    this.addRequest(id, req, isDuplicate);
     await this.databaseRepository.withUuidLock(id, async () => {
       // conventional upload, check status again with lock acquired before overwriting
       if (isDuplicate) {
@@ -117,15 +117,27 @@ export class AssetUploadService extends BaseService {
         req.on('data', (data: Buffer) => hash.update(data));
         writeStream.on('finish', () => (checksumBuffer = hash.digest()));
       }
-      await new Promise((resolve, reject) => writeStream.on('close', resolve).on('error', reject));
+      try {
+        await new Promise((resolve, reject) => writeStream.on('close', resolve).on('error', reject));
+      } catch (error: any) {
+        this.logger.debugFn(() => `Upload interrupted for ${id}: ${error.message}`);
+        if (!res.headersSent) {
+          res.status(500).send('Upload interrupted');
+        }
+        return;
+      }
       if (isResumable) {
         this.setCompleteHeader(res, version, uploadComplete);
       }
       if (!isComplete) {
-        res.status(201).set('Location', location).setHeader('Upload-Limit', this.getUploadLimits(backup)).send();
+        res.status(201).set('Location', location).setHeader('Upload-Limit', this.getUploadLimits(upload)).send();
         return;
       }
-      if (dto.checksum.compare(checksumBuffer!) !== 0) {
+      if (!checksumBuffer) {
+        res.status(500).send('Upload did not complete');
+        return;
+      }
+      if (dto.checksum.compare(checksumBuffer) !== 0) {
         return await this.sendChecksumMismatch(res, id, path);
       }
 
@@ -137,12 +149,12 @@ export class AssetUploadService extends BaseService {
   async resumeUpload(auth: AuthDto, req: Readable, res: Response, id: string, dto: ResumeUploadDto): Promise<void> {
     this.logger.verboseFn(() => `Resuming upload for ${id}: ${JSON.stringify(dto)}`);
     const { uploadComplete, uploadLength, uploadOffset, contentLength, version } = dto;
-    const { backup } = await this.getConfig({ withCache: true });
-    if (this.rejectOversizedAppend(req, res, contentLength, backup)) {
+    const { upload } = await this.getConfig({ withCache: true });
+    if (this.rejectOversizedAppend(req, res, contentLength, upload)) {
       return;
     }
     this.setCompleteHeader(res, version, false);
-    this.addRequest(id, req);
+    this.addRequest(id, req, true);
     return this.databaseRepository.withUuidLock(id, async () => {
       const completionData = await this.assetRepository.getCompletionMetadata(id, auth.user.id);
       if (!completionData) {
@@ -218,8 +230,7 @@ export class AssetUploadService extends BaseService {
 
   async getUploadStatus(auth: AuthDto, res: Response, id: string, { version }: GetUploadStatusDto): Promise<void> {
     this.logger.verboseFn(() => `Getting upload status for ${id} with version ${version}`);
-    const { backup } = await this.getConfig({ withCache: true });
-    this.abortExistingRequest(id);
+    const { upload } = await this.getConfig({ withCache: true });
     return this.databaseRepository.withUuidLock(id, async () => {
       const asset = await this.assetRepository.getCompletionMetadata(id, auth.user.id);
       if (!asset) {
@@ -234,23 +245,23 @@ export class AssetUploadService extends BaseService {
       if (size !== null && size > 0) {
         res.setHeader('Upload-Length', size.toString());
       }
-      res.setHeader('Upload-Limit', this.getUploadLimits(backup)).send();
+      res.setHeader('Upload-Limit', this.getUploadLimits(upload)).send();
     });
   }
 
   async getUploadOptions(res: Response): Promise<void> {
-    const { backup } = await this.getConfig({ withCache: true });
+    const { upload } = await this.getConfig({ withCache: true });
     res
       .status(204)
       .setHeader('Accept-Patch', 'application/partial-upload')
-      .setHeader('Upload-Limit', this.getUploadLimits(backup))
+      .setHeader('Upload-Limit', this.getUploadLimits(upload))
       .send();
   }
 
   @OnJob({ name: JobName.PartialAssetCleanupQueueAll, queue: QueueName.BackgroundTask })
   async removeStaleUploads(): Promise<void> {
     const config = await this.getConfig({ withCache: false });
-    const createdBefore = DateTime.now().minus({ hours: config.backup.upload.maxAgeHours }).toJSDate();
+    const createdBefore = DateTime.now().minus({ hours: config.upload.maxAgeHours }).toJSDate();
     let jobs: JobItem[] = [];
     const assets = this.assetJobRepository.streamForPartialAssetCleanupJob(createdBefore);
     for await (const asset of assets) {
@@ -364,10 +375,12 @@ export class AssetUploadService extends BaseService {
     await withRetry(() => this.assetRepository.removeAndDecrementQuota(assetId));
   }
 
-  private addRequest(assetId: string, req: Readable) {
+  private addRequest(assetId: string, req: Readable, isRetry: boolean) {
     const addTime = new Date();
     const activeRequest = { req, startTime: addTime };
-    this.abortExistingRequest(assetId, addTime);
+    if (isRetry) {
+      this.abortExistingRequest(assetId, addTime);
+    }
     this.activeRequests.set(assetId, activeRequest);
     req.on('close', () => {
       if (this.activeRequests.get(assetId)?.req === req) {
@@ -462,7 +475,7 @@ export class AssetUploadService extends BaseService {
     }
   }
 
-  private getUploadLimits({ upload }: SystemConfig['backup']) {
+  private getUploadLimits(upload: SystemConfig['upload']) {
     return `min-size=1, max-append-size=${upload.maxAppendBytes}, max-age=${upload.maxAgeHours * 3600}`;
   }
 
@@ -470,23 +483,27 @@ export class AssetUploadService extends BaseService {
     req: Readable,
     res: Response,
     contentLength: number,
-    backup: SystemConfig['backup'],
+    upload: SystemConfig['upload'],
   ): boolean {
-    if (contentLength <= backup.upload.maxAppendBytes) {
+    if (contentLength <= upload.maxAppendBytes) {
       return false;
     }
 
     res
       .status(413)
-      .setHeader('Upload-Limit', this.getUploadLimits(backup))
+      .setHeader('Upload-Limit', this.getUploadLimits(upload))
       .contentType('application/problem+json')
       .send({
         type: 'https://iana.org/assignments/http-problem-types#max-append-size',
         title: 'request body exceeds the maximum append size',
-        'max-append-size': backup.upload.maxAppendBytes,
+        'max-append-size': upload.maxAppendBytes,
       });
     req.destroy();
     return true;
   }
 }
+
+
+
+
 

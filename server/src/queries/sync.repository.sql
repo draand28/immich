@@ -439,6 +439,7 @@ where
   "asset"."updateId" < $1
   and "asset"."updateId" > $2
   and "ownerId" = $3
+  and "asset"."status" != 'partial'
 order by
   "asset"."updateId" asc
 

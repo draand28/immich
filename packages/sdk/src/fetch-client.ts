@@ -62,17 +62,10 @@ export type AdminConfigDatabaseBackupDto = {
     /** Keep last amount */
     keepLastAmount: number;
 };
-export type AdminConfigUploadBackupDto = {
-    /** Max age in hours */
-    maxAgeHours: number;
-    /** Largest single request body a resumable upload may send */
-    maxAppendBytes: number;
-};
 export type AdminConfigBackupsDto = {
     /** Whether the backups feature is enabled */
     beta?: boolean;
     database: AdminConfigDatabaseBackupDto;
-    upload: AdminConfigUploadBackupDto;
 };
 export type AdminConfigFFmpegRealtimeDto = {
     /** Enable real-time HLS transcoding (alpha) */
@@ -421,6 +414,12 @@ export type AdminConfigTrashDto = {
     /** Enabled */
     enabled: boolean;
 };
+export type AdminConfigUploadDto = {
+    /** Max age of an unfinished upload in hours */
+    maxAgeHours: number;
+    /** Largest single request body a resumable upload may send */
+    maxAppendBytes: number;
+};
 export type AdminConfigUserDto = {
     /** Delete delay */
     deleteDelay: number;
@@ -448,6 +447,7 @@ export type AdminConfigDto = {
     templates: AdminConfigTemplatesDto;
     theme: AdminConfigThemeDto;
     trash: AdminConfigTrashDto;
+    upload: AdminConfigUploadDto;
     user: AdminConfigUserDto;
 };
 export type DatabaseBackupDeleteDto = {

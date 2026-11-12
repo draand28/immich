@@ -3,7 +3,7 @@ import { sql, type Kysely } from 'kysely';
 import { InjectKysely } from 'nestjs-kysely';
 import { columns } from 'src/database.js';
 import { DummyValue, GenerateSql } from 'src/decorators.js';
-import { MemoryType } from 'src/enum.js';
+import { AssetStatus, MemoryType } from 'src/enum.js';
 import { DB } from 'src/schema/index.js';
 import type { SyncAck } from 'src/types.js';
 
@@ -406,6 +406,7 @@ class AssetSync extends BaseSync {
       .select(columns.syncAsset)
       .select('asset.updateId')
       .where('ownerId', '=', options.userId)
+      .where('asset.status', '!=', sql.lit(AssetStatus.Partial))
       .stream();
   }
 }
@@ -860,3 +861,4 @@ class AssetOcrSync extends BaseSync {
       .stream();
   }
 }
+
