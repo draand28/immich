@@ -86,9 +86,9 @@ describe('fileUploader resumable uploads', () => {
 
   test('splits a large file when the server advertises a max append size', async ({ api }) => {
     api.on({ getUploadOptions: () => ({ status: 204, headers: { 'upload-limit': `max-append-size=${LIMIT}` } }) });
-    vi.mocked(uploadRequest).mockImplementation(async (options) => {
+    vi.mocked(uploadRequest).mockImplementation(async (options): Promise<{ data: unknown; status: number; headers: Record<string, string> }> => {
       if (options.method === 'POST') {
-        return { status: 201, data: {}, headers: { location: '/api/upload/asset-id' } };
+        return { status: 201, data: {} as never, headers: { location: '/api/upload/asset-id' } };
       }
       return { status: 200, data: { id: 'asset-id' } as never, headers: {} };
     });
@@ -109,12 +109,12 @@ describe('fileUploader resumable uploads', () => {
   test('shrinks the chunk when the proxy rejects the append size', async ({ api }) => {
     api.on({ getUploadOptions: () => ({ status: 204, headers: { 'upload-limit': `max-append-size=${LIMIT}` } }) });
     let posts = 0;
-    vi.mocked(uploadRequest).mockImplementation(async (options) => {
+    vi.mocked(uploadRequest).mockImplementation(async (options): Promise<{ data: unknown; status: number; headers: Record<string, string> }> => {
       if (options.method === 'POST') {
         if (posts++ === 0) {
           throw new ApiError('Payload Too Large', 413, '');
         }
-        return { status: 201, data: {}, headers: { location: '/api/upload/asset-id' } };
+        return { status: 201, data: {} as never, headers: { location: '/api/upload/asset-id' } };
       }
       return { status: 200, data: { id: 'asset-id' } as never, headers: {} };
     });
@@ -128,6 +128,49 @@ describe('fileUploader resumable uploads', () => {
       .filter((options) => options.method !== undefined);
     expect(posts).toBe(2);
     expect((postsAndPatches[1].data as Blob).size).toBe(LIMIT / 2);
+    expect(get(uploadAssetsStore)[0].state).toBe(UploadState.DONE);
+  });
+
+  test('resumes a partial upload at the offset from a 409', async ({ api }) => {
+    api.on({ getUploadOptions: () => ({ status: 204, headers: { 'upload-limit': `max-append-size=${LIMIT}` } }) });
+    const file = new File([new Uint8Array(LIMIT + 1024)], 'big.jpg', { type: 'image/jpeg' });
+    const location = '/api/upload/resumed-id';
+    vi.mocked(uploadRequest).mockImplementation(async (options): Promise<{ data: unknown; status: number; headers: Record<string, string> }> => {
+      if (options.method === 'POST') {
+        throw new ApiError('Conflict', 409, '', { 'upload-offset': String(LIMIT), location });
+      }
+      return { status: 200, data: { id: 'resumed-id' } as never, headers: {} };
+    });
+
+    await fileUploadHandler({ files: [file] });
+
+    const calls = vi.mocked(uploadRequest).mock.calls.map(([options]) => options);
+    const patch = calls.find((options) => options.method === 'PATCH');
+    expect(patch?.url).toContain(location);
+    expect(patch?.headers?.['upload-offset']).toBe(String(LIMIT));
+    expect(patch?.headers?.['upload-complete']).toBe('?1');
+    expect(get(uploadAssetsStore)[0].state).toBe(UploadState.DONE);
+  });
+
+  test('uses the size the proxy reports on 413', async ({ api }) => {
+    api.on({ getUploadOptions: () => ({ status: 204, headers: { 'upload-limit': `max-append-size=${LIMIT}` } }) });
+    const file = new File([new Uint8Array(LIMIT + 1024)], 'big.jpg', { type: 'image/jpeg' });
+    const proxyLimit = 6 * 1024 * 1024;
+    let posts = 0;
+    vi.mocked(uploadRequest).mockImplementation(async (options): Promise<{ data: unknown; status: number; headers: Record<string, string> }> => {
+      if (options.method === 'POST') {
+        if (posts++ === 0) {
+          throw new ApiError('Payload Too Large', 413, '', { 'upload-limit': `max-append-size=${proxyLimit}` });
+        }
+        return { status: 201, data: {} as never, headers: { location: '/api/upload/asset-id' } };
+      }
+      return { status: 200, data: { id: 'asset-id' } as never, headers: {} };
+    });
+
+    await fileUploadHandler({ files: [file] });
+
+    const retried = vi.mocked(uploadRequest).mock.calls[1][0];
+    expect((retried.data as Blob).size).toBe(proxyLimit);
     expect(get(uploadAssetsStore)[0].state).toBe(UploadState.DONE);
   });
 });
@@ -148,3 +191,5 @@ describe('openFilePicker', () => {
     expect(document.querySelector('input[type="file"]')).toBeNull();
   });
 });
+
+

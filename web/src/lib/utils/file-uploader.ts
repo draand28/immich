@@ -156,17 +156,28 @@ const hexToBase64 = (hex: string) => {
   return btoa(String.fromCodePoint(...bytes));
 };
 
+const parseMaxAppendSize = (header: string | undefined) => {
+  const match = /(?:^|,)\s*max-append-size=(\d+)/.exec(header ?? '');
+  return match ? Number(match[1]) : undefined;
+};
+
+const maxAppendSizeCache = new Map<string, number | undefined>();
+
 const getMaxAppendSize = async (url: string) => {
+  if (maxAppendSizeCache.has(url)) {
+    return maxAppendSizeCache.get(url);
+  }
+  let limit: number | undefined;
   try {
     const response = await fetch(url, { method: 'OPTIONS' });
-    if (!response.ok) {
-      return;
+    if (response.ok) {
+      limit = parseMaxAppendSize(response.headers.get('upload-limit') ?? undefined);
     }
-    const match = /(?:^|,)\s*max-append-size=(\d+)/.exec(response.headers.get('upload-limit') ?? '');
-    return match ? Number(match[1]) : undefined;
   } catch {
-    return;
+    limit = undefined;
   }
+  maxAppendSizeCache.set(url, limit);
+  return limit;
 };
 
 type ResumableUploadOptions = {
@@ -192,10 +203,11 @@ const resumableUpload = async ({
   const queryParams = asQueryString(authManager.params);
   const withQuery = (url: string) => (queryParams ? `${url}${url.includes('?') ? '&' : '?'}${queryParams}` : url);
   const uploadUrl = withQuery(getBaseUrl() + '/upload');
-  let chunkSize = await getMaxAppendSize(uploadUrl);
-  if (!chunkSize || size <= chunkSize) {
+  const limit = await getMaxAppendSize(uploadUrl);
+  if (!limit || size <= limit) {
     return;
   }
+  let chunkSize = limit;
 
   const digest = hexToBase64(checksum ?? (await hashFile(assetFile)));
   const assetData = [
@@ -250,11 +262,13 @@ const resumableUpload = async ({
       }
     } catch (error) {
       if (error instanceof ApiError && error.statusCode === 413) {
-        const next = Math.max(MIN_CHUNK_BYTES, Math.floor(chunkSize / 2));
-        if (next >= end - offset) {
+        const advertised = parseMaxAppendSize(error.headers['upload-limit']);
+        const nextChunk =
+          advertised && advertised < chunkSize ? advertised : Math.max(MIN_CHUNK_BYTES, Math.floor(chunkSize / 2));
+        if (nextChunk >= end - offset) {
           throw error;
         }
-        chunkSize = next;
+        chunkSize = nextChunk;
         continue;
       }
       if (error instanceof ApiError && error.statusCode === 409) {

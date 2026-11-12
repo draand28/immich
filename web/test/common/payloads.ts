@@ -150,8 +150,8 @@ const versionHistory = (): ResponseOf<'getVersionHistory'> => [
 const adminConfig = (overrides: Partial<ResponseOf<'getAdminConfig'>> = {}): ResponseOf<'getAdminConfig'> => ({
   backup: {
     database: { enabled: true, cronExpression: '0 02 * * *', keepLastAmount: 14 },
-    upload: { maxAgeHours: 72, maxAppendBytes: 94_371_840 },
   },
+  upload: { maxAgeHours: 72, maxAppendBytes: 94_371_840 },
   ffmpeg: {
     crf: 23,
     threads: 0,
