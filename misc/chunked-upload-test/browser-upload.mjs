@@ -1,5 +1,5 @@
 const playwrightPath =
-  process.env.PLAYWRIGHT_MODULE ?? new URL('../../../web/node_modules/playwright/index.mjs', import.meta.url).href;
+  process.env.PLAYWRIGHT_MODULE ?? new URL('../../web/node_modules/playwright/index.mjs', import.meta.url).href;
 const { chromium } = await import(playwrightPath);
 
 const BASE = process.env.BASE ?? 'http://127.0.0.1:23284';
