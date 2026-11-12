@@ -29,7 +29,7 @@ const apiContentLength = {
 };
 
 // This is important to let go of the asset lock for an inactive request
-const SOCKET_TIMEOUT_MS = 30_000;
+const SOCKET_TIMEOUT_MS = 300_000;
 
 @ApiTags('Upload')
 @Controller('upload')

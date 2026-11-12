@@ -73,9 +73,18 @@ export class AssetUploadService extends BaseService {
       }
 
       if (isResumable) {
-        this.sendInterimResponse(res, location, version, this.getUploadLimits(backup));
-        // this is a 5xx to indicate the client should do offset retrieval and resume
-        res.status(500).send('Incomplete asset already exists');
+        const existing = await this.assetRepository.getCompletionMetadata(id, auth.user.id);
+        const offset = existing ? await this.getCurrentOffset(existing.path) : 0;
+        res
+          .status(409)
+          .set('Location', location)
+          .setHeader('Upload-Offset', offset.toString())
+          .setHeader('Upload-Limit', this.getUploadLimits(backup))
+          .contentType('application/problem+json')
+          .send({
+            type: 'https://iana.org/assignments/http-problem-types#incomplete-upload-exists',
+            title: 'an incomplete upload for this asset already exists',
+          });
         return;
       }
     }
@@ -85,7 +94,6 @@ export class AssetUploadService extends BaseService {
     }
 
     if (isResumable) {
-      this.sendInterimResponse(res, location, version, this.getUploadLimits(backup));
     }
 
     this.addRequest(id, req);
@@ -394,18 +402,6 @@ export class AssetUploadService extends BaseService {
     });
   }
 
-  private sendInterimResponse({ socket }: Response, location: string, interopVersion: number, limits: string): void {
-    if (socket && !socket.destroyed) {
-      // Express doesn't understand interim responses, so write directly to socket
-      socket.write(
-        'HTTP/1.1 104 Upload Resumption Supported\r\n' +
-          `Location: ${location}\r\n` +
-          `Upload-Limit: ${limits}\r\n` +
-          `Upload-Draft-Interop-Version: ${interopVersion}\r\n\r\n`,
-      );
-    }
-  }
-
   private sendInconsistentLength(res: Response): void {
     res.status(400).contentType('application/problem+json').send({
       type: 'https://iana.org/assignments/http-problem-types#inconsistent-upload-length',
@@ -493,3 +489,4 @@ export class AssetUploadService extends BaseService {
     return true;
   }
 }
+
