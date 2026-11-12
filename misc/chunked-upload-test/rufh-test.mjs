@@ -143,6 +143,10 @@ async function main() {
       console.log(`uploaded ${size} bytes in ${requests} requests, ${Date.now() - started}ms, asset ${body.id}`);
       break;
     }
+    if (MODE === 'partial') {
+      console.log(`stopped after ${end} of ${size} bytes, asset ${new URL(url).pathname.split('/').pop()}`);
+      break;
+    }
   }
   await handle.close();
 }
