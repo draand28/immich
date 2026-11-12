@@ -17116,6 +17116,321 @@
         "x-immich-state": "Stable"
       }
     },
+    "/upload": {
+      "options": {
+        "operationId": "getUploadOptions",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Upload"
+        ]
+      },
+      "post": {
+        "operationId": "startUpload",
+        "parameters": [
+          {
+            "description": "Non-negative size of the request body in bytes.",
+            "in": "header",
+            "name": "content-length",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "key",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "RFC 9651 structured dictionary containing an `sha` (bytesequence) checksum used to detect duplicate files and validate data integrity.",
+            "in": "header",
+            "name": "repr-digest",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Structured boolean indicating whether this request completes the file. Use Upload-Incomplete instead for version <= 3.",
+            "in": "header",
+            "name": "upload-complete",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Indicates the version of the RUFH protocol supported by the client.",
+            "in": "header",
+            "name": "upload-draft-interop-version",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "RFC 9651 structured dictionary containing asset metadata with the following keys:\n- device-asset-id (string, required): Unique device asset identifier\n- device-id (string, required): Device identifier\n- file-created-at (string/date, required): ISO 8601 date string or Unix timestamp\n- file-modified-at (string/date, required): ISO 8601 date string or Unix timestamp\n- filename (string, required): Original filename\n- is-favorite (boolean, optional): Favorite status\n- live-photo-video-id (string, optional): Live photo ID for assets from iOS devices\n- icloud-id (string, optional): iCloud identifier for assets from iOS devices",
+            "in": "header",
+            "name": "x-immich-asset-data",
+            "required": true,
+            "schema": {
+              "example": "device-asset-id=\"abc123\", device-id=\"phone1\", filename=\"photo.jpg\", file-created-at=\"2024-01-01T00:00:00Z\", file-modified-at=\"2024-01-01T00:00:00Z\"",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadOkDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "tags": [
+          "Upload"
+        ],
+        "x-immich-permission": "asset.upload"
+      }
+    },
+    "/upload/{id}": {
+      "delete": {
+        "operationId": "cancelUpload",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "key",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "tags": [
+          "Upload"
+        ],
+        "x-immich-permission": "asset.upload"
+      },
+      "head": {
+        "operationId": "getUploadStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "key",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Indicates the version of the RUFH protocol supported by the client.",
+            "in": "header",
+            "name": "upload-draft-interop-version",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "tags": [
+          "Upload"
+        ],
+        "x-immich-permission": "asset.upload"
+      },
+      "patch": {
+        "operationId": "resumeUpload",
+        "parameters": [
+          {
+            "description": "Non-negative size of the request body in bytes.",
+            "in": "header",
+            "name": "content-length",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "key",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Structured boolean indicating whether this request completes the file. Use Upload-Incomplete instead for version <= 3.",
+            "in": "header",
+            "name": "upload-complete",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Indicates the version of the RUFH protocol supported by the client.",
+            "in": "header",
+            "name": "upload-draft-interop-version",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Non-negative byte offset indicating the starting position of the data in the request body within the entire file.",
+            "in": "header",
+            "name": "upload-offset",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadOkDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "tags": [
+          "Upload"
+        ],
+        "x-immich-permission": "asset.upload"
+      }
+    },
     "/users": {
       "get": {
         "description": "Retrieve a list of all users on the server.",
@@ -18919,10 +19234,14 @@
           },
           "database": {
             "$ref": "#/components/schemas/AdminConfigDatabaseBackupDto"
+          },
+          "upload": {
+            "$ref": "#/components/schemas/AdminConfigUploadBackupDto"
           }
         },
         "required": [
-          "database"
+          "database",
+          "upload"
         ],
         "type": "object"
       },
@@ -19726,6 +20045,10 @@
             "description": "Missing thumbnails",
             "type": "boolean"
           },
+          "removeStaleUploads": {
+            "description": "Remove stale uploads",
+            "type": "boolean"
+          },
           "startTime": {
             "description": "Start time (HH:MM)",
             "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$",
@@ -19741,6 +20064,7 @@
           "databaseCleanup",
           "generateMemories",
           "missingThumbnails",
+          "removeStaleUploads",
           "startTime",
           "syncQuotaUsage"
         ],
@@ -20144,6 +20468,27 @@
         "required": [
           "days",
           "enabled"
+        ],
+        "type": "object"
+      },
+      "AdminConfigUploadBackupDto": {
+        "properties": {
+          "maxAgeHours": {
+            "description": "Max age in hours",
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxAppendBytes": {
+            "description": "Largest single request body a resumable upload may send",
+            "maximum": 94371840,
+            "minimum": 5242880,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "maxAgeHours",
+          "maxAppendBytes"
         ],
         "type": "object"
       },
@@ -23310,6 +23655,8 @@
           "AssetFileMigration",
           "AssetGenerateThumbnailsQueueAll",
           "AssetGenerateThumbnails",
+          "PartialAssetCleanup",
+          "PartialAssetCleanupQueueAll",
           "AuditTableCleanup",
           "AuthChallengeCleanup",
           "DatabaseBackup",
@@ -33885,6 +34232,17 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "UploadOkDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
         "type": "object"
       },
       "UsageByUserDto": {

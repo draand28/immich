@@ -289,6 +289,10 @@ export class QueueService extends BaseService {
       jobs.push({ name: JobName.UserSyncUsage });
     }
 
+    if (config.nightlyTasks.removeStaleUploads) {
+      jobs.push({ name: JobName.PartialAssetCleanupQueueAll });
+    }
+
     if (config.nightlyTasks.missingThumbnails) {
       jobs.push({ name: JobName.AssetGenerateThumbnailsQueueAll, data: { force: false } });
     }

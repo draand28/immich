@@ -53,6 +53,10 @@ const updatedConfig = Object.freeze<SystemConfig>({
       cronExpression: '0 02 * * *',
       keepLastAmount: 14,
     },
+    upload: {
+      maxAgeHours: 72,
+      maxAppendBytes: 90 * 1024 * 1024,
+    },
   },
   ffmpeg: {
     crf: 30,
@@ -150,6 +154,7 @@ const updatedConfig = Object.freeze<SystemConfig>({
     missingThumbnails: true,
     generateMemories: true,
     syncQuotaUsage: true,
+    removeStaleUploads: true,
   },
   reverseGeocoding: {
     enabled: true,

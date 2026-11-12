@@ -10,6 +10,7 @@ import {
 import { get, isArray, isDate, isEmpty, isObject, orderBy, unset } from 'lodash-es';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { setTimeout } from 'node:timers/promises';
 import picomatch from 'picomatch';
 import { CLIP_MODEL_INFO, JOBS_ASSET_PAGINATION_SIZE, endpointTags, serverVersion } from 'src/constants.js';
 import { extraModels } from 'src/decorators.js';
@@ -386,4 +387,19 @@ export const createLibraryMatcher = ({
 
 export function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+export async function withRetry<T>(operation: () => Promise<T>, retries: number = 2, delay: number = 100): Promise<T> {
+  let lastError: any;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+    }
+    if (attempt < retries) {
+      await setTimeout(delay);
+    }
+  }
+  throw lastError;
 }

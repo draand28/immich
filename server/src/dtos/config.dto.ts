@@ -170,6 +170,16 @@ const AdminConfigSchemaWithVisibility = z
             keepLastAmount: z.int().min(1).describe('Keep last amount'),
           })
           .meta({ id: 'AdminConfigDatabaseBackupDto' }),
+        upload: z
+          .object({
+            maxAgeHours: z.int().min(1).describe('Max age in hours'),
+            maxAppendBytes: z
+              .int()
+              .min(5 * 1024 * 1024)
+              .max(90 * 1024 * 1024)
+              .describe('Largest single request body a resumable upload may send'),
+          })
+          .meta({ id: 'AdminConfigUploadBackupDto' }),
       })
       .meta({ id: 'AdminConfigBackupsDto' }),
     ffmpeg: AdminConfigFFmpegSchema,
@@ -400,6 +410,7 @@ const AdminConfigSchemaWithVisibility = z
         clusterNewFaces: configBool.describe('Cluster new faces'),
         generateMemories: configBool.describe('Generate memories'),
         syncQuotaUsage: configBool.describe('Sync quota usage'),
+        removeStaleUploads: configBool.describe('Remove stale uploads'),
       })
       .meta({ id: 'AdminConfigNightlyTasksDto' }),
     trash: z
@@ -589,6 +600,10 @@ export const defaults = Object.freeze<SystemConfig>({
       cronExpression: CronExpression.EVERY_DAY_AT_2AM,
       keepLastAmount: 14,
     },
+    upload: {
+      maxAgeHours: 72,
+      maxAppendBytes: 90 * 1024 * 1024,
+    },
   },
   ffmpeg: {
     crf: 23,
@@ -769,6 +784,7 @@ export const defaults = Object.freeze<SystemConfig>({
     syncQuotaUsage: true,
     missingThumbnails: true,
     clusterNewFaces: true,
+    removeStaleUploads: true,
   },
   trash: {
     enabled: true,
